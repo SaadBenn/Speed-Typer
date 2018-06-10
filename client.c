@@ -10,48 +10,24 @@
 int main(){
 
 	const char SERVER_FIFO[] = "/tmp/server_pipe";
-    bool done = false;
-    bool killserver = false;
-    char curr;
-    char* result;
-    int errno;
-    char buf[64];
- 	int fifo = open(SERVER_FIFO, O_WRONLY);
-	if (fifo < 0) {
-		perror("Unable to open named pipe");
-		exit(-1);
-	}
+    char message[100];
+    sprintf(message, "%d", getpid());
+    int fifo;
 
-    // listen for input
-    while(!done)
-    {
-        result = fgets((char*)&buf, 64, stdin);
-        if (result != NULL) {
-            // send this character to the FIFO
-            // sends with \n, replace with \0
-            buf[strlen(buf)-1] = '\0';
-            if (strcmp(buf, "exit") == 0)
-            {
-                done = true;
-                killserver = true;
-            }
-            else
-            {
-                printf("sending %s\n", buf);
-                errno = write(fifo, &buf, strlen(buf)+1);
-                
-                if (errno < 0) {
-                    perror("ERROR: Error writing to pipe");
-                }
-            }
-        }
-        else
-            done = true;
+    fifo = open(SERVER_FIFO, O_WRONLY);
+    if (fifo < 0) {
+        perror("Unable to open named pipe");
+        exit(EXIT_FAILURE);
     }
 
-    if (killserver)
-        write(fifo, "\a", 1);
-
+    int messagelen = strlen(message) + 1;
+    
+    // write to the FIFO
+    int errno = write(fifo, message, messagelen);
+    if (errno < 0) {
+        perror("Error writing");
+    }
+   
     // though it's tempting, don't close the fifo
     // leave it open for others to use!
     // Try uncommenting to see what happens.
