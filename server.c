@@ -1,51 +1,116 @@
-#include <sys/types.h> //mkfifo
-#include <sys/stat.h>  //mkfifo
-#include <stdio.h>     // printf
-#include <fcntl.h>     // open
-#include <unistd.h>    // unlink
-#include <stdlib.h>    // exit
-#include <stdbool.h>   // bool
+// Comp 3430 Assignment 2 Speed Typer
 
-#define CLIENTS 2
+// server.c
 
-int main() {
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 
-	const char SERVER_FIFO[] = "/tmp/server_pipe";
-	char buf[100];
-	char *client_PIDs[CLIENTS];
+#define NUMPLAYERS 2
+//#include "words.h"
 
+char string_buffer[10];
+//memset(string_buffer, 0, 10);
 
-	// create the named pipe
-	int result = mkfifo(SERVER_FIFO, 0600);
-	if (result) {
-		perror("Unable to create the named pipe");
-		exit(EXIT_FAILURE);
-	}
+char *client_pids[NUMPLAYERS];
+int client_scores[NUMPLAYERS] = {0, 0};
 
-	// connect to the named pipe
-	//printf("%s\n", "opening file");
-	int fd = open(SERVER_FIFO, O_RDONLY);
-	
-	if (fd == -1) {
-		perror("Error: pipe can't be opened.");
-		exit(EXIT_FAILURE);
-	}
+// int signal_client(int player)
+// {
+//     // Signal registration
+//     char *fileNameFirst = "/tmp/_pipe";
+//     char *fifo_name = (char *)malloc(sizeof(fileNameFirst) + sizeof(client_pids[player]) + 1);
+//     strcat(fifo_name, fileNameFirst);
+//     strcat(fifo_name, client_pids[player]);
+//     int signalEntry = open(fifo_name, O_WRONLY);
+//     if (signalEntry == -1)
+//     {
+//         printf("Could not find client FIFO!");
+//         return EXIT_FAILURE;
+//     }
+//     else
+//     {
+//         char *message = "You have been accepted into the game! \n";
+//         char L = (char)strlen(message);
+//         write(signalEntry, &L, 1);                          //Send string length
+//         write(signalEntry, message, (char)strlen(message)); //Send string characters
+//         close(signalEntry);
+//     }
+//     return EXIT_SUCCESS;
+// }
 
-	printf("%s\n", "Opened the file");
+int main()
+{
+    printf("Server is listening for input \n");
 
-	int client_count = 0;
-	while (client_count < CLIENTS) {
-		result = read(fd, buf, sizeof(buf));
-		if (result < 0) {
-			perror("Error: error reading from pipe");
-			exit(EXIT_FAILURE);
-		} else {
-			if (buf[0] != '\0') {
-				client_PIDs[client_count++] = (char*)malloc(sizeof(buf));
-				printf("Registeration successful %s\n", buf);
-			}
-		}
-		
-	}
-	printf("%s\n", "Registeration successful");
+    const char SERVER_FIFO[] = "/tmp/_pipe";
+    int creation_status = mkfifo(SERVER_FIFO, 0666);
+    if (creation_status == -1)
+    {
+        printf("FIFO creation failed! It is likely that this FIFO already exists! \n");
+    }
+
+    // Open FIFO for write
+    int response = open(SERVER_FIFO, O_RDONLY);
+    if (response == -1)
+    {
+        printf("Response FIFO is unavailable for read access");
+        return EXIT_FAILURE;
+    }
+    else
+    {
+        printf("Response FIFO Opened \n");
+    }
+
+    // Check registration
+    int reads;
+    char length;
+
+    int count = 0;
+    while (count < NUMPLAYERS)
+    {
+    	// read the length
+        reads = read(response, &length, 1);
+        read(response, string_buffer, length);
+
+        string_buffer[(int)length] = '\0';
+        if (string_buffer[0] != '\0')
+        {
+            client_pids[count] = (char *)malloc(sizeof(string_buffer));
+            printf("Registered Client: %s\n", string_buffer);
+            //int error = signal_client(count);
+            //if (error == -1) {
+            //     printf("Failed to notify Client properly!");
+            //     return EXIT_FAILURE;
+            // }
+            count++;
+        }
+    }
+    printf("Clients Registered Succesfully!\n");
+
+    // Write to client FIFOs
+    // int wordsSpelledCorrectly = 0;
+
+    //int clientFifos[numPlayers];
+    //for (int i = 0; i < numPlayers; i++) {
+    //   clientFifos[i] = open("fifo_%d")
+    // }
+
+    // Check if word was spelled correctly using the client_responses FIFO
+
+    // Send all clients win or lose through the FIFOS created by clients
+    
+    return 0;
 }
+
+// int main(int argc, char *argv[])
+// {
+//     // Call the server
+//     int program_success = server(2);
+
+//     return program_success;
+// }
