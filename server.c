@@ -3,7 +3,7 @@
 // server.c
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h> // rand()
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -15,6 +15,9 @@
 
 // forward reference
 int signal_client(int player);
+int generate_random_word();
+// store the name of the pipes
+char *client_pipes[NUMPLAYERS];
 
 const char SERVER_FIFO[] = "./_pipe";
 char string_buffer[10];
@@ -71,9 +74,15 @@ int main()
     // Write to client FIFOs
     // int wordsSpelledCorrectly = 0;
 
-    //int clientFifos[numPlayers];
-    //for (int i = 0; i < numPlayers; i++) {
-    //   clientFifos[i] = open("fifo_%d")
+    // int i;
+    // for (i = 0; i < NUMPLAYERS; i++) {
+    // 	//strcat(clientFifos[i], SERVER_FIFO);
+    // 	//strcat(clientFifos[i], client_pids[i]);
+    // 	int _success = open(client_pipes[i], O_WRONLY);
+    // 	if (_success < 0) {
+    // 		perror("Failed to open the client's pipe!!");
+    // 	}
+    // 	printf("Server opening client's pipe again %s\n", client_pipes[i]);    
     // }
 
     // Check if word was spelled correctly using the client_responses FIFO
@@ -123,16 +132,38 @@ int signal_client(int player)
     printf("Server opening client's pipe %s\n", fifo_name);
 
     int signalEntry = open(fifo_name, O_WRONLY);
-    if (signalEntry == -1) {
+    if (signalEntry < 0) {
         printf("Could not find client FIFO!");
         return EXIT_FAILURE;
     
     } else {
+    	
+    	// we got the correct name of the pipe
+    	client_pipes[player] = (char *)malloc(sizeof(SERVER_FIFO) + sizeof(client_pids[player]) + 1);
+    	client_pipes[player] = fifo_name;
+    	//printf("I stored this pid %s\n", client_pipes[player]);
+
         char *message = "You have been accepted into the game! \n";
         char L = (char)strlen(message);
         write(signalEntry, &L, 1);                          //Send string length
         write(signalEntry, message, (char)strlen(message)); //Send string characters
+
+        // write the word to the pipe as well
+        int rand_num = generate_random_word();
+        //printf("%d\n", rand_num);
+        //printf("%s\n", words[rand_num]);
+
+        write(signalEntry, words[rand_num], 4);
         close(signalEntry);
     }
     return EXIT_SUCCESS;
+}
+
+
+int generate_random_word() {
+	int len = sizeof(words)/ sizeof(char*);
+
+	int rand_num = rand() % len;
+
+	return rand_num;
 }

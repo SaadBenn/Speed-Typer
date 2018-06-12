@@ -50,6 +50,8 @@ int main() {
 
     // Get whether accepted into game or not
     char string_buffer[100];
+    char word[5];
+
     int read_server_message = open(fifo_name, O_RDONLY);
     if (read_server_message < 0) {
         printf("Client FIFO could not be opened properly!");
@@ -65,14 +67,22 @@ int main() {
         if (reads_ == 0) {
             break;
         }
-        
+
         // read the actual message
         read(read_server_message, string_buffer, server_res_length);
         //string_buffer[(int)message_length] = '\0';
         printf("%s\n", string_buffer);
+        
         player_ready = true;
     }
+
     printf("Congratulations! We are now ready to play!!\n");
+
+    read(read_server_message, word, 5);
+    printf("%s\n", word);
+
+    // spawn the threads
+    
     
     // //Tidy
     close(read_server_message);
