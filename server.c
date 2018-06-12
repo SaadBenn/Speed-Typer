@@ -11,82 +11,58 @@
 #include <string.h>
 
 #define NUMPLAYERS 2
-//#include "words.h"
+#include "words.h"
 
+// forward reference
+int signal_client(int player);
+
+const char SERVER_FIFO[] = "./_pipe";
 char string_buffer[10];
-//memset(string_buffer, 0, 10);
 
 char *client_pids[NUMPLAYERS];
 int client_scores[NUMPLAYERS] = {0, 0};
-
-// int signal_client(int player)
-// {
-//     // Signal registration
-//     char *fileNameFirst = "/tmp/_pipe";
-//     char *fifo_name = (char *)malloc(sizeof(fileNameFirst) + sizeof(client_pids[player]) + 1);
-//     strcat(fifo_name, fileNameFirst);
-//     strcat(fifo_name, client_pids[player]);
-//     int signalEntry = open(fifo_name, O_WRONLY);
-//     if (signalEntry == -1)
-//     {
-//         printf("Could not find client FIFO!");
-//         return EXIT_FAILURE;
-//     }
-//     else
-//     {
-//         char *message = "You have been accepted into the game! \n";
-//         char L = (char)strlen(message);
-//         write(signalEntry, &L, 1);                          //Send string length
-//         write(signalEntry, message, (char)strlen(message)); //Send string characters
-//         close(signalEntry);
-//     }
-//     return EXIT_SUCCESS;
-// }
 
 int main()
 {
     printf("Server is listening for input \n");
 
-    const char SERVER_FIFO[] = "/tmp/_pipe";
-    int creation_status = mkfifo(SERVER_FIFO, 0666);
-    if (creation_status == -1)
-    {
+    int status = mkfifo(SERVER_FIFO, 0666);
+    if (status < 0) {
         printf("FIFO creation failed! It is likely that this FIFO already exists! \n");
     }
 
     // Open FIFO for write
     int response = open(SERVER_FIFO, O_RDONLY);
-    if (response == -1)
-    {
+    if (response < 0) {
         printf("Response FIFO is unavailable for read access");
         return EXIT_FAILURE;
-    }
-    else
-    {
+    
+    } else {
         printf("Response FIFO Opened \n");
     }
 
     // Check registration
-    int reads;
     char length;
 
     int count = 0;
     while (count < NUMPLAYERS)
     {
     	// read the length
-        reads = read(response, &length, 1);
+        int reads = read(response, &length, 1);
         read(response, string_buffer, length);
 
         string_buffer[(int)length] = '\0';
-        if (string_buffer[0] != '\0')
-        {
+        
+        if (string_buffer[0] != '\0') {
             client_pids[count] = (char *)malloc(sizeof(string_buffer));
+            client_pids[count] = string_buffer;
             printf("Registered Client: %s\n", string_buffer);
-            //int error = signal_client(count);
-            //if (error == -1) {
-            //     printf("Failed to notify Client properly!");
-            //     return EXIT_FAILURE;
-            // }
+            
+            int errnum = signal_client(count);
+            if (errnum < 0) {
+                 printf("Failed to notify client properly!");
+                 return EXIT_FAILURE;
+            }
             count++;
         }
     }
@@ -107,10 +83,56 @@ int main()
     return 0;
 }
 
-// int main(int argc, char *argv[])
+//************************************************************
+// int signal_client(int player)
 // {
-//     // Call the server
-//     int program_success = server(2);
-
-//     return program_success;
+//     // Signal registration
+//     //char *SERVER_FIFO = "/tmp/_pipe";
+//     char *fifo_name = (char *)malloc(sizeof(SERVER_FIFO) + sizeof(client_pclient_client_pids[player]) + 1);
+//     strcat(fifo_name, SERVER_FIFO);
+//     strcat(fifo_name, client_pclient_client_pids[player]);
+    
+//     int signal_result = open(fifo_name, O_WRONLY);
+    
+//     if (signal_result < 0) {
+//         printf("Could not find client FIFO!");
+//         return EXIT_FAILURE;
+    
+//     } else {
+//         char *message = "You have been accepted into the game! \n";
+//         char L = (char)strlen(message);
+//         write(signal_result, &L, 1);                          //Send string length
+//         write(signal_result, message, (char)strlen(message)); //Send string characters
+//         close(signal_result);
+//     }
+//     return EXIT_SUCCESS;
 // }
+
+
+
+int signal_client(int player)
+{
+    // Signal registration
+    //char *fileNameFirst = "./_pipe";
+    char *fifo_name = (char *)malloc(sizeof(SERVER_FIFO) + sizeof(client_pids[player]) + 1);
+    strcat(fifo_name, SERVER_FIFO);
+    strcat(fifo_name, client_pids[player]);
+
+    //printf("Clients pids %s\n", client_pids[0]);
+    
+    printf("Server opening client's pipe %s\n", fifo_name);
+
+    int signalEntry = open(fifo_name, O_WRONLY);
+    if (signalEntry == -1) {
+        printf("Could not find client FIFO!");
+        return EXIT_FAILURE;
+    
+    } else {
+        char *message = "You have been accepted into the game! \n";
+        char L = (char)strlen(message);
+        write(signalEntry, &L, 1);                          //Send string length
+        write(signalEntry, message, (char)strlen(message)); //Send string characters
+        close(signalEntry);
+    }
+    return EXIT_SUCCESS;
+}

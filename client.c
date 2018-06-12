@@ -8,69 +8,73 @@
 #include <pthread.h>
 #include<stdbool.h>
 
-int main()
-{
-    const char SERVER_FIFO[] = "/tmp/_pipe";
+const char SERVER_FIFO[] = "./_pipe";
+
+int main() {
     char message[10];
 
     // Create Client FIFO
-    printf("Creating new FIFO!\n");
-    //char *fileNameFirst = "/tmp/client_";
-    //char *fifo_name = (char *) malloc (sizeof(fileNameFirst) + sizeof(message) + 1);
-    //strcat(fifo_name, fileNameFirst);
-    //strcat(fifo_name, message);
+    printf("Creating client's FIFO!\n");
 
-    // int send = mkfifo(fifo_name, 0666);
-    // if (send == -1)
-    // {
-    //     printf("Client FIFO failed to create. It likely already exists and you can ignore this warning!");
-    // }
-    // else
-    // {
-    //     printf("Created Client FIFO!\n");
-    // }
-
-   
     sprintf(message, "%d", getpid());
-    printf("Client %s\n", message);
+    char *fifo_name = (char *) malloc (sizeof(SERVER_FIFO) + sizeof(message) + 1);
+    strcat(fifo_name, SERVER_FIFO);
+    strcat(fifo_name, message);
 
-    //Open fifo for write
+    printf("Client creating a named pipe %s\n", fifo_name);
+
+    int send = mkfifo(fifo_name, 0666);
+    if (send < 0) {
+        printf("Client FIFO failed to create. It likely already exists and you can ignore this warning!");
+    
+    } else {
+        printf("Created Client FIFO!\n");
+    }
+
+    printf("Client %s\n", message);
+    
+    //Open server fifo for registering the client
     int fd = open(SERVER_FIFO, O_WRONLY);
-    if (fd == -1)
-    {
+    if (fd < 0) {
         perror("Cannot open fifo");
         return EXIT_FAILURE;
     }
 
-    char L = (char)strlen(message);
-    write(fd, &L, 1);               //Send string length
-    write(fd, message, 10); //Send string characters
+    char message_length = (char)strlen(message);
+    // Send string's length to the server
+    write(fd, &message_length, 1);
+    // Send string characters               
+    write(fd, message, 10); 
     //close(fd);
 
-    // Get whether accepted into game or not
-    // char stringBuffer[100];
-    // int readFile = open(fifo_name, O_RDONLY);
-    // if (readFile == -1)
-    // {
-    //     printf("Client FIFO could not be opened properly!");
-    //     return EXIT_FAILURE;
-    // }
 
-    // bool readyToPlay = false;
-    // char length;
-    // while(readyToPlay == false) {
-    //     int reads = read(readFile, &length, 1);
-    //     if (reads == 0) {
-    //         break;
-    //     }
-    //     read(readFile, stringBuffer, length);
-    //     //stringBuffer[(int)length] = '\0';
-    //     printf("%s\n", stringBuffer);
-    //     readyToPlay = true;
-    // }
-    // printf("Congratulations! We are now ready to play \n");
+    // Get whether accepted into game or not
+    char string_buffer[100];
+    int read_server_message = open(fifo_name, O_RDONLY);
+    if (read_server_message < 0) {
+        printf("Client FIFO could not be opened properly!");
+        return EXIT_FAILURE;
+    }
+
+    bool player_ready = false;
+    char server_res_length;
+    
+    while(!player_ready) {
+        // get the message_length o fthe message
+        int reads_ = read(read_server_message, &server_res_length, 1);
+        if (reads_ == 0) {
+            break;
+        }
+        
+        // read the actual message
+        read(read_server_message, string_buffer, server_res_length);
+        //string_buffer[(int)message_length] = '\0';
+        printf("%s\n", string_buffer);
+        player_ready = true;
+    }
+    printf("Congratulations! We are now ready to play!!\n");
     
     // //Tidy
-    // close(readFile);
+    close(read_server_message);
     return EXIT_SUCCESS;
 }
