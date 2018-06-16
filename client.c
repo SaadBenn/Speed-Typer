@@ -1,3 +1,10 @@
+// Comp 3430 Assignment 2 Speed Typer
+// Saad Mushtaq
+// COMP 3430
+// Assignmnet 2
+// Please God, make it work while the marker is testing it. 
+// client.c
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,11 +12,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <signal.h>
 #include <pthread.h>
 #include<stdbool.h>
 
 // forward reference
 int spawn_threads();
+void handler(int signal);
 //pthread_t threads[2];
 
 
@@ -18,7 +27,7 @@ bool ready_for_word = true;
 pthread_cond_t read_word_signal;
 bool done = false;
 int status_read;
-
+char *fifo_name;
 int fd;
 char word[5];
 bool signaled = false;
@@ -31,15 +40,18 @@ const char SERVER_FIFO[] = "./_pipe";
 
 int main() {
     
+
+    signal(SIGINT, handler);
+    signal(SIGTERM, handler);
     // Create Client FIFO
-    printf("Creating client's FIFO!\n");
+    //printf("Creating client's FIFO!\n");
 
     sprintf(pid_client, "%d", getpid());
-    char *fifo_name = (char *) malloc (sizeof(SERVER_FIFO) + sizeof(pid_client) + 1);
+    fifo_name = (char *) malloc (sizeof(SERVER_FIFO) + sizeof(pid_client) + 1);
     strcat(fifo_name, SERVER_FIFO);
     strcat(fifo_name, pid_client);
 
-    printf("Client creating a named pipe %s\n", fifo_name);
+    //printf("Client creating a named pipe %s\n", fifo_name);
 
     int send = mkfifo(fifo_name, 0666);
     if (send < 0) {
@@ -49,7 +61,7 @@ int main() {
         printf("Created Client FIFO!\n");
     }
 
-    printf("Client pid is: %s\n", pid_client);
+    //printf("Client pid is: %s\n", pid_client);
     
     //Open server fifo for registering the client
     fd = open(SERVER_FIFO, O_WRONLY);
@@ -60,13 +72,13 @@ int main() {
 
     message_length = (char)strlen(pid_client);
     
-    printf("The client's pid is: %s\n", pid_client);
+    //printf("The client's pid is: %s\n", pid_client);
     // Send string's length to the server
     write(fd, &message_length, 1);
     // Send string characters               
     write(fd, &pid_client, message_length); 
 
-    printf("%s\n", "Mama there goes your man.");
+    //printf("%s\n", "Mama there goes your man.");
 
     spawn_threads(fifo_name);
 
@@ -80,7 +92,7 @@ void* incoming_messages(void *arg) {
 
     int read_fifo_status = open(fifo_name, O_RDONLY);
     if (read_fifo_status < 0) {
-        perror("Error! Cannot open clients's pipe");
+        perror("\nError! Cannot open clients's pipe\n");
         pthread_exit(0);
     }
 
@@ -88,25 +100,27 @@ void* incoming_messages(void *arg) {
     while (!done) {
         int status_ = read(read_fifo_status, &length, 1);
 
-        if (status_ == 0) {
-            printf("%s\n", "Eror reading the client\n");
-            pthread_exit(0);
-        }
+        if (status_ <= 0) {
+            perror("\nServer fifo not found");
+            done = true;
+            //pthread_exit(0);
+        } else {
 
-        read(read_fifo_status, &word_buffer, length);
-        if (strcmp(word_buffer, "WINNER") == 0) {
-            done = true;
-            printf("%s\n", "WINNER!");
-        
-        } else if (strcmp(word_buffer, "LOSER") == 0) {
-            done = true;
-            printf("%s\n", "LOSER");
-        
+            read(read_fifo_status, &word_buffer, length);
+            if (strcmp(word_buffer, "WINNER") == 0) {
+                done = true;
+                printf("%s\n", "WINNER!");
+            
+            } else if (strcmp(word_buffer, "LOSER") == 0) {
+                done = true;
+                printf("%s\n", "LOSER");
+            
+            }
+            pthread_mutex_lock(&signalLock);
+            signaled = true;
+            pthread_cond_signal(&signalAvailable);
+            pthread_mutex_unlock(&signalLock);
         }
-        pthread_mutex_lock(&signalLock);
-        signaled = true;
-        pthread_cond_signal(&signalAvailable);
-        pthread_mutex_unlock(&signalLock);
     }
 
     pthread_exit(0);
@@ -137,7 +151,7 @@ void* incoming_stdin(void *arg) {
         spelled_word[strlen(spelled_word) -1] = '\0';
         //printf("%s\n", );
         
-        printf("We got the user input in thread 2 %s\n", spelled_word);
+        //printf("We got the user input in thread 2 %s\n", spelled_word);
 
         int server_status = open(SERVER_FIFO, O_WRONLY);
         if (server_status < 0) {
@@ -152,7 +166,7 @@ void* incoming_stdin(void *arg) {
         strcat(word_pid, " ");
         strcat(word_pid, pid_client);
         
-        printf("The word + pid in the client is: %s\n", word_pid);
+        //printf("The word + pid in the client is: %s\n", word_pid);
 
         char word_pid_length = strlen(word_pid);
         write(server_status, &word_pid_length, 1);
@@ -163,7 +177,6 @@ void* incoming_stdin(void *arg) {
     } 
     pthread_exit(0);
 }
-
 
 
 int spawn_threads(char *fifo_name) {
@@ -180,4 +193,10 @@ int spawn_threads(char *fifo_name) {
     pthread_join(threads[1], NULL);
 
     return 0;
+}
+
+void handler(int signal) {
+    printf("%s\n", "Client cleaning up the fifo");
+    unlink(fifo_name);
+    exit(0);
 }
